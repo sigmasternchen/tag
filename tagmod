@@ -1,0 +1,42 @@
+#!/bin/bash
+
+. libtag
+
+add=""
+remove=""
+
+while getopts "a:r:" arg; do
+	case $arg in
+		a)
+			add="$add $OPTARG"
+			;;
+		r)
+			remove="$remove $OPTARG"
+			;;
+		*)
+			echo "Unknown option."
+			exit 1
+	esac
+done
+
+shift $((OPTIND-1))
+
+file="$1"
+
+if ! isValidTarget "$file"; then
+	echo "This is not a valid target file."
+	exit 2
+fi
+
+if ! isInFilelist "$file"; then
+	echo "The specified file is not added."
+	exit 2
+fi
+
+if test "$add" != ""; then
+	addTagsToFile "$file" $add
+fi
+
+if test "$remove" != ""; then
+	removeTagsFromFile "$file" $remove
+fi

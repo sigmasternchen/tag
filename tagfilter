@@ -1,0 +1,40 @@
+#!/bin/bash
+
+. libtag
+
+tags=""
+notTags=""
+
+while getopts "at:n:" arg; do
+	case $arg in
+		a)
+			;;
+		t)
+			tags="$tags $OPTARG"
+			;;
+		n)
+			notTags="$notTags $OPTARG"
+			;;
+		*)
+			echo "Unknown option."
+			exit 1
+	esac
+done
+
+if ! isTagDir; then
+	echo "This is not a tag directory."
+	exit 2
+fi
+
+if hasChanges > /dev/null; then
+	echo "There are new files. Please add them before using a new filter."
+	exit 2
+fi
+
+clean
+
+getFilesForTags "$tags" "$notTags" | while read file; do
+	restore "$file"
+done
+
+

@@ -1,0 +1,284 @@
+#!/bin/bash
+
+readonly TAG_DIR_NAME=".tag"
+readonly TAG_DELIMITER=' '
+
+rootdir="$(realpath .)"
+tagdir="$rootdir/$TAG_DIR_NAME"
+
+isTagDir=1
+
+while test ! -d "$tagdir"; do
+	rootdir="$(dirname "$rootdir")"
+	tagdir="$rootdir/$TAG_DIR_NAME"
+
+	if test "$rootdir" = "/"; then
+		isTagDir=0
+		rootdir="$(realpath .)"
+		tagdir="$rootdir/$TAG_DIR_NAME"
+		break;
+	fi
+done
+
+relativeDir="$(realpath --relative-to="$rootdir" .)"
+
+isTagDir() {
+	if test "$isTagDir" = 1; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+realtarget() {
+	realpath -s --relative-base="$rootdir" "$1"
+}
+
+isValidTarget() {
+	target="$1"
+
+	if test ! -f "$target"; then
+		return 2
+	fi	
+
+	tmp=$(realpath -s --relative-base="$tagdir" "$target")
+	if test "${tmp:0:1}" != "/"; then
+		return 3
+	fi
+
+	relative=$(realtarget "$target")
+
+	if test "${relative:0:1}" = "/"; then
+		return 1
+	fi
+
+	return 0
+}
+
+initTagDir() {
+	mkdir -p "$tagdir"
+	mkdir -p "$tagdir/raw"
+
+	touch "$tagdir"/files  
+}
+
+addToFilelist() {
+	file="$(realtarget "$1")"
+	if ! isValidTarget "$file"; then
+		return 1
+	fi
+	if isInFilelist "$file"; then
+		return 2
+	fi
+
+	echo "$file" >> "$tagdir"/files
+	echo "" >> "$tagdir"/files
+
+	return 0
+}
+
+isInFilelist() {
+	file="$(realtarget "$1")"
+
+	readarray -t list < "$tagdir"/files
+
+	for i in $(seq 0 2 ${#list[@]}); do
+		if test "${list[$i]}" = "$file"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+getTagsForFile() {
+	file="$(realtarget "$1")"
+
+	readarray -t list < "$tagdir"/files
+
+	for i in $(seq 0 2 ${#list[@]}); do
+		if test "${list[$i]}" = "$file"; then
+			set -f
+			echo -n "${list[$(($i + 1))]}" | tr "$TAG_DELIMITER" '\n'
+			set +f
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+addTagsToFile() {
+	file="$(realtarget "$1")"
+
+	readarray -t list < "$tagdir"/files
+
+	index=-1
+
+	for i in $(seq 0 2 ${#list[@]}); do
+		if test "${list[$i]}" = "$file"; then
+			index=$i
+			break
+		fi
+	done
+
+	if test $index = "-1"; then
+		return 1
+	fi
+
+	set -f
+	tags="$(echo -n "${list[$(($i + 1))]}" | tr "$TAG_DELIMITER" '\n')"$'\n'"$(echo "${@:2}" | tr ' ' '\n')"
+	tags="$(echo "$tags" | sed -e '/^$/d' | sort | uniq)"	
+	tags="$(echo -n "$tags" | tr '\n' "$TAG_DELIMITER" | sed -e 's/[\/&]/\\&/g')"
+
+	# index + 2 because sed starts line numbers at 1
+	sed -i "$(($index + 2))s/.*/$tags/" "$tagdir"/files
+	set +f
+}
+
+removeTagsFromFile() {
+	file="$(realtarget "$1")"
+
+	readarray -t list < "$tagdir"/files
+
+	index=-1
+
+	for i in $(seq 0 2 ${#list[@]}); do
+		if test "${list[$i]}" = "$file"; then
+			index=$i
+			break
+		fi
+	done
+
+	if test $index = "-1"; then
+		return 1
+	fi
+
+	set -f
+	tags="$(echo -n "${list[$(($i + 1))]}" | tr "$TAG_DELIMITER" '\n')"
+	for tag in ${@:2}; do
+		tags="$(echo "$tags" | grep -E -v "^$tag$")"
+	done
+	tags="$(echo "$tags" | sed -e '/^$/d' | sort | uniq)"	
+	tags="$(echo -n "$tags" | tr '\n' "$TAG_DELIMITER" | sed -e 's/[\/&]/\\&/g')"
+
+	# index + 2 because sed starts line numbers at 1
+	sed -i "$(($index + 2))s/.*/$tags/" "$tagdir"/files
+	set +f
+}
+
+
+getFilelist() {
+	awk 'NR%2 == 1' "$tagdir"/files	
+}
+
+getTaglist() {
+	awk 'NR%2 == 0' "$tagdir"/files | tr ' ' '\n' | sort | uniq
+}
+
+moveFile() {
+	target="$(realtarget "$1")"
+	targetdir="$(dirname $target)"
+
+	mkdir -p "$tagdir"/raw/"$targetdir"/
+	mv "$rootdir"/"$target" "$tagdir"/raw/"$target"
+}
+
+deleteFile() {
+	target="$(realtarget "$1")"
+	
+	rm "$tagdir"/raw/"$target"
+}
+
+restore() {
+	target="$(realtarget "$1")"
+	targetdir="$(dirname $target)"
+	mkdir -p "$rootdir"/"$targetdir"
+	ln "$tagdir"/raw/"$target" "$rootdir"/$target
+}
+
+clean() {
+	if test "$rootdir" = ""; then
+		echo "CRITICAL: rootdir is empty."
+		exit 1
+	fi
+	rm -rf "$rootdir"/* 2> /dev/null
+}
+
+hasChanges() {
+	knownfiles="$(getFilelist | sort)"
+	allfiles="$(find . -not -type d -not -path "./$TAG_DIR_NAME/*" -printf "%P\n" | sort)"
+	unknownfiles=$(diff --normal <(echo "$knownfiles") <(echo "$allfiles") | grep ">" | awk -F">" '{ print $2 }' | sed -e 's/^ //g')
+
+	if test "$unknownfiles" = ""; then
+		return 1
+	else
+		echo "$unknownfiles"
+		return 0
+	fi
+
+}
+
+getFilesForTags() {
+	mustTags="$1"
+	mustNotTags="$2"
+
+	readarray -t list < "$tagdir"/files
+
+	for i in $(seq 1 2 ${#list[@]}); do
+		okay=1
+		for mustTag in $mustTags; do
+			mustTagOkay=0
+			for tag in ${list[$i]}; do
+				if test "$tag" = "$mustTag"; then
+					mustTagOkay=1
+					break
+				fi
+			done
+			if test $mustTagOkay = 0; then
+				okay=0
+				break
+			fi
+		done
+		if test $okay = 0; then
+			continue
+		fi
+		for mustNotTag in $mustNotTags; do
+			mustNotTagOkay=1
+			for tag in ${list[$i]}; do
+				if test "$tag" = "$mustNotTag"; then
+					mustNotTagOkay=0
+					break
+				fi
+			done
+			if test $mustNotTagOkay = 0; then
+				okay=0
+				break
+			fi
+		done
+		if test $okay = 1; then
+			echo "${list[$((i - 1))]}"
+		fi
+	done
+}
+
+deleteFromFilelist() {
+	file="$(realtarget "$1")"
+
+	readarray -t list < "$tagdir"/files
+
+	index=-1
+
+	for i in $(seq 0 2 ${#list[@]}); do
+		if test "${list[$i]}" = "$file"; then
+			index=$i
+			break
+		fi
+	done
+
+	if test $index = "-1"; then
+		return 1
+	fi
+
+	sed -i $((index + 1)),2d "$tagdir"/files
+}

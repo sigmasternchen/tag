@@ -1,0 +1,25 @@
+#!/bin/bash
+
+. libtag
+
+if ! isTagDir; then
+	echo "This is not a tag directory."
+	exit 1
+fi
+
+if ! isValidTarget "$1"; then
+	echo "This is not a valid target file."
+	exit 2
+fi
+
+if isInFilelist "$1"; then
+	echo "This file is already added"
+	exit 2
+fi
+
+addToFilelist "$1"
+moveFile "$1"
+restore "$1"
+
+echo "File '$1' successfully added."
+

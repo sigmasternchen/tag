@@ -1,0 +1,19 @@
+#!/bin/bash
+
+. libtag
+
+file="$1"
+
+if ! isValidTarget "$file"; then
+	echo "This is not a valid target file."
+	exit 2
+fi
+
+if ! isInFilelist "$file"; then
+	echo "The specified file is not added."
+	exit 2
+fi
+
+deleteFromFilelist "$file"
+deleteFile "$file"
+rm "$file"

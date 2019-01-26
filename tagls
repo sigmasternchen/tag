@@ -1,0 +1,71 @@
+#!/bin/bash
+
+. libtag
+
+long=0
+all=0
+
+while getopts "la" arg; do
+	case $arg in
+		l)
+			long=1
+			;;
+		a)
+			all=1
+			;;
+		*)
+			echo "Unknown option."
+			exit 1
+			;;
+	esac
+done
+
+shift $((OPTIND-1))
+
+if ! isTagDir; then
+	echo "This is not a tag directory."
+	exit 1
+fi
+
+file="$1"
+
+if test "$file" = ""; then
+	file=.
+fi
+
+files="$(getFilelist | grep -E "^$file")"
+
+longestLine=$(echo "$files" | wc -L)
+
+echo "$files" | while read file; do
+	if test $long = 1; then
+		printf "%-${longestLine}s   %s\n" "$file" "$(getTagsForFile "$file" | tr '\n' ' ')"
+	else
+		printf "%s\n" "$file"
+	fi
+done
+
+if test $all = 1; then
+	files="$(hasChanges | grep -E "^$file/")"
+
+	if test "$files" = ""; then
+		echo
+		echo "No unknown files."
+	fi
+
+	longestLine=$(echo "$files" | wc -L)
+
+	echo
+	echo "Not yet added:"
+	echo
+
+	echo "$files" | while read file; do
+		if test $long = 1; then
+			printf "%s\n" "$file"
+		else
+			printf "%s\n" "$file"
+		fi
+	done
+fi
+
+exit 0

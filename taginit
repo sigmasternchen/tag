@@ -1,0 +1,37 @@
+#!/bin/bash
+
+. libtag
+
+force=0
+
+while getopts "f" arg; do
+	case $arg in
+		f)
+			force=1
+			;;
+		*)
+			echo "Unknown option."
+			exit 1
+			;;
+	esac
+done
+
+if isTagDir; then
+	test "$(realpath "$rootdir")" = "$(realpath .)"
+	isCurrent=$?
+
+	if test $force = 1; then
+		if test $isCurrent = 0; then
+			echo "Error: This is already a tag directory."
+			exit 2
+		fi
+	else
+		echo "There is already a tag directory at $rootdir."
+		echo "If you want to init a new one anyway use the -f option."
+		exit 2
+	fi
+fi
+
+initTagDir
+
+echo "Success. This is now a tag directory."
