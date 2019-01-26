@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if test "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" = ""; then
+	zenity --error --text="This only works on local files."
+	exit 1
+fi
+
+if test ! -d ~/.tagbin; then
+	zenity --error --text="Couldn't find tag installation."
+	exit 1
+fi
+
+tmp="$(realpath ~/.tagbin)"
+. "$tmp"/libtag
+export PATH="$PATH:$tmp"
+
+if ! isTagDir; then
+	zenity --error --text="This is not a tag directory."
+	exit 1
+fi
+
+for file in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+	result="$(zenity --entry --title="" --text="Enter the new tags for '$file'.\n(seperated by sapce).")"
+	if test $? != 0; then
+		exit 1
+	fi
+
+	addTagsToFile "$file" $result
+done

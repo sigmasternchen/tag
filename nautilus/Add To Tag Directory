@@ -1,0 +1,43 @@
+#!/bin/bash
+
+if test "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" = ""; then
+	zenity --error --text="This only works on local files."
+	exit 1
+fi
+
+if test ! -d ~/.tagbin; then
+	zenity --error --text="Couldn't find tag installation."
+	exit 1
+fi
+
+tmp="$(realpath ~/.tagbin)"
+. "$tmp"/libtag
+export PATH="$PATH:$tmp"
+
+if ! isTagDir; then
+	if zenity --question --text="This is not a tag directory.\nDo you want to make it one?"; then
+		if tag init; then
+			zenity --info --text="Tag directory initialized."
+		else
+			zenity --error --text="There was an error while initializing tag directory."
+			exit 1
+		fi
+
+	else
+		exit 1
+	fi
+fi
+
+errors=""
+
+for file in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+	if ! tag add "$file"; then
+		errors="$errors $file"
+	fi
+done
+
+if test "$errors" = ""; then
+	zenity --info --text="Success! All files added."
+else
+	zenity --error --text="The following files could not be added:\n$(echo "$errors" | tr ' ' '\n')"
+fi

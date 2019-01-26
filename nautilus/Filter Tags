@@ -1,0 +1,47 @@
+#!/bin/bash
+
+if test "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" = ""; then
+	zenity --error --text="This only works on local files."
+	exit 1
+fi
+
+if test ! -d ~/.tagbin; then
+	zenity --error --text="Couldn't find tag installation."
+	exit 1
+fi
+
+tmp="$(realpath ~/.tagbin)"
+. "$tmp"/libtag
+export PATH="$PATH:$tmp"
+
+if ! isTagDir; then
+	zenity --error --text="This is not a tag directory."
+	exit 1
+fi
+
+globalTags="$(getTaglist)"
+
+if test "$globalTags" = ""; then
+	zenity --error --text="No tags known. Please add some before filtering for them."
+	exit 1
+fi
+
+changes="$(hasChanges)"
+if test $? = 0; then
+	zenity --error --text="The following files are not yet added.\nPlease add them before filtering.\n\n$changes"
+	exit 1
+fi
+
+mustTags=$(zenity --list --title="Must Tags" --checklist --separator=" " --column="" --column="Tag" $(echo "$globalTags" | awk '{ print "FALSE " $1 }' | tr '\n' ' '))
+if test $? != 0; then
+	exit 1
+fi
+
+
+mustNotTags=$(zenity --list --title="Must Not Tags" --checklist --separator=" " --column="" --column="Tag" $(echo "$globalTags" | awk '{ print "FALSE " $1 }' | tr '\n' ' '))
+if test $? != 0; then
+	exit 1
+fi
+
+tag filter $(echo "$mustTags" | tr ' ' '\n' | sed -e '/^$/d' | awk '{ print "-t " $1}' | tr '\n' ' ') $(echo "$mustNotTags" | tr ' ' '\n' | sed -e '/^$/d' | awk '{ print "-n " $1}' | tr '\n' ' ')
+
