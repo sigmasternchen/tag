@@ -136,6 +136,35 @@ addTagsToFile() {
 	set +f
 }
 
+setTagsForFile() {
+	file="$(realtarget "$1")"
+
+	readarray -t list < "$tagdir"/files
+
+	index=-1
+
+	for i in $(seq 0 2 ${#list[@]}); do
+		if test "${list[$i]}" = "$file"; then
+			index=$i
+			break
+		fi
+	done
+
+	if test $index = "-1"; then
+		return 1
+	fi
+
+	set -f
+	tags="$(echo "${@:2}" | tr ' ' '\n')"
+	tags="$(echo "$tags" | sed -e '/^$/d' | sort | uniq)"	
+	tags="$(echo -n "$tags" | tr '\n' "$TAG_DELIMITER" | sed -e 's/[\/&]/\\&/g')"
+
+	# index + 2 because sed starts line numbers at 1
+	sed -i "$(($index + 2))s/.*/$tags/" "$tagdir"/files
+	set +f
+
+}
+
 removeTagsFromFile() {
 	file="$(realtarget "$1")"
 
