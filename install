@@ -1,0 +1,39 @@
+#!/bin/sh
+
+okay=1
+check() {
+	if ! which "$1" > /dev/null; then
+		okay=0
+		echo "$1 is missing."
+	fi
+}
+
+check bash
+check dirname
+check realpath
+check sort
+check uniq
+check find
+check grep
+check tr
+check sed
+check awk
+
+check zenity
+
+if test $okay != 1; then
+	echo
+	echo "Missing dependencies. Abort."
+	exit 1
+fi
+
+
+
+mkdir -p ~/.tagbin
+cp -r * ~/.tagbin/
+
+ln ~/.tagbin/nautilus/* ~/.local/share/nautilus/scripts/
+
+if test "$(grep "~/.tagbin" ~/.bashrc)" = ""; then
+	echo 'PATH="$PATH:~/.tagbin/"' >> ~/.bashrc
+fi
