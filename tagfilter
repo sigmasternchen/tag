@@ -4,9 +4,13 @@
 
 tags=""
 notTags=""
+simulate=0
 
-while getopts "at:n:" arg; do
+while getopts "sat:n:" arg; do
 	case $arg in
+		s)
+			simulate=1
+			;;
 		a)
 			;;
 		t)
@@ -31,10 +35,16 @@ if hasChanges > /dev/null; then
 	exit 2
 fi
 
-clean
+if test $simulate = 0; then
+	clean
+fi
 
 getFilesForTags "$tags" "$notTags" | while read file; do
-	restore "$file"
+	if test $simulate = 1; then
+		echo "$file"
+	else
+		restore "$file"
+	fi
 done
 
 
