@@ -4,9 +4,13 @@
 
 long=0
 all=0
+tags=0
 
-while getopts "la" arg; do
+while getopts "tla" arg; do
 	case $arg in
+		t)
+			tags=1
+			;;
 		l)
 			long=1
 			;;
@@ -27,45 +31,64 @@ if ! isTagDir; then
 	exit 1
 fi
 
-file="$1"
+if test $tags = 0; then
 
-if test "$file" = ""; then
-	file=.
-fi
+	file="$1"
 
-files="$(getFilelist | grep -E "^$file")"
-
-longestLine=$(echo "$files" | wc -L)
-
-echo "$files" | while read file; do
-	if test $long = 1; then
-		printf "%-${longestLine}s   %s\n" "$file" "$(getTagsForFile "$file" | tr '\n' ' ')"
-	else
-		printf "%s\n" "$file"
+	if test "$file" = ""; then
+		file=.
 	fi
-done
 
-if test $all = 1; then
-	files="$(hasChanges | grep -E "^$file/")"
-
-	if test "$files" = ""; then
-		echo
-		echo "No unknown files."
-	fi
+	files="$(getFilelist | grep -E "^$file")"
 
 	longestLine=$(echo "$files" | wc -L)
 
-	echo
-	echo "Not yet added:"
-	echo
-
 	echo "$files" | while read file; do
 		if test $long = 1; then
-			printf "%s\n" "$file"
+			printf "%-${longestLine}s   %s\n" "$file" "$(getTagsForFile "$file" | tr '\n' ' ')"
 		else
 			printf "%s\n" "$file"
 		fi
 	done
-fi
 
+	if test $all = 1; then
+		files="$(hasChanges | grep -E "^$file/")"
+	
+		if test "$files" = ""; then
+			echo
+			echo "No unknown files."
+		fi
+	
+		longestLine=$(echo "$files" | wc -L)
+	
+		echo
+		echo "Not yet added:"
+		echo
+	
+		echo "$files" | while read file; do
+			if test $long = 1; then
+				printf "%s\n" "$file"
+			else
+				printf "%s\n" "$file"
+			fi
+		done
+	fi
+else
+	tags="$1"
+
+	if test "$tags" = ""; then
+		tags="$(getTaglist)"
+	fi
+
+	longestLine="$(echo "$tags" | wc -L)"
+
+	echo "$tags" | while read tag; do
+		if test $long = 1; then
+			printf "%-${longestLine}s   %s\n" "$tag" "$(getFilesForTags "$tag" "" | tr '\n' ' ')"
+		else
+			printf "%s\n" "$tag"
+		fi
+
+	done
+fi
 exit 0
