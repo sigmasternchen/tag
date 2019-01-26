@@ -23,3 +23,5 @@ restore "$1"
 
 echo "File '$1' successfully added."
 
+exit 0
+

@@ -35,3 +35,5 @@ fi
 initTagDir
 
 echo "Success. This is now a tag directory."
+
+exit 0
