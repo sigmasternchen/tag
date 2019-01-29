@@ -33,11 +33,12 @@ fi
 
 if test $tags = 0; then
 
-	file="$1"
-
 	if test "$file" = ""; then
-		file=.
+		file="."
 	fi
+
+	file="$(realtarget "$file")"
+	toRoot
 
 	files="$(getFilelist | grep -E "^$file")"
 

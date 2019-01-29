@@ -2,7 +2,8 @@
 
 . libtag
 
-file="$1"
+file="$(realtarget "$1")"
+toRoot
 
 if ! isValidTarget "$file"; then
 	echo "This is not a valid target file."

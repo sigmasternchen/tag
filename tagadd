@@ -7,21 +7,24 @@ if ! isTagDir; then
 	exit 1
 fi
 
-if ! isValidTarget "$1"; then
+file="$(realtarget "$1")"
+toRoot
+
+if ! isValidTarget "$file"; then
 	echo "This is not a valid target file."
 	exit 2
 fi
 
-if isInFilelist "$1"; then
+if isInFilelist "$file"; then
 	echo "This file is already added"
 	exit 2
 fi
 
-addToFilelist "$1"
-moveFile "$1"
-restore "$1"
+addToFilelist "$file"
+moveFile "$file"
+restore "$file"
 
-echo "File '$1' successfully added."
+echo "File '$file' successfully added."
 
 exit 0
 
