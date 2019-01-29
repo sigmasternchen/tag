@@ -30,6 +30,10 @@ isTagDir() {
 	fi
 }
 
+toRoot() {
+	pushd "$rootdir" > /dev/null
+}
+
 realtarget() {
 	realpath -s --relative-base="$rootdir" "$1"
 }
@@ -47,7 +51,6 @@ isValidTarget() {
 	fi
 
 	relative=$(realtarget "$target")
-
 	if test "${relative:0:1}" = "/"; then
 		return 1
 	fi
@@ -220,8 +223,8 @@ deleteFile() {
 }
 
 restore() {
-	target="$(realtarget "$1")"
-	targetdir="$(dirname $target)"
+	target="$1"
+	targetdir="$(dirname "$target")"
 	mkdir -p "$rootdir"/"$targetdir"
 	ln "$tagdir"/raw/"$target" "$rootdir"/$target
 }
@@ -309,5 +312,5 @@ deleteFromFilelist() {
 		return 1
 	fi
 
-	sed -i $((index + 1)),2d "$tagdir"/files
+	sed -i $((index + 1)),$((index + 2))d "$tagdir"/files
 }
